@@ -8,6 +8,9 @@ $discordWebHook = Get-Content "C:\THEPHIPPSBOT\DiscordWH.txt"
 # create file to store updates
 if (!(Test-Path $updatesFile)) { New-Item -ItemType File -Path $updatesFile -Force }
 
+# check for discord webhook
+if (!(Test-Path $discordWebHook)) { Write-Host "No webhook configured in [$($discordWebHook)]"; exit }
+
 # gather updates to compare
 $updatesList = Get-Content -Path $updatesFile
 
@@ -29,7 +32,7 @@ function CheckSiteForUpdates {
     # loop through class dates, checking for new ones
     for ($i = 0; $i -lt $classes.Count; $i++) {
         if (!($updatesList -match $classDates[$i])) { 
-            Write-Host "New $($classes[$i]) class dates: $($classDates[$i])"
+            Write-Host "New $($classes[$i]) class date: $($classDates[$i])"
             
             # append update to log file
             "$($classes[$i]) date: $($classDates[$i])" | Out-File -Append -LiteralPath $updatesFile
