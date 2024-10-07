@@ -29,7 +29,7 @@ function CheckSiteForUpdates {
     # loop through class dates, checking for new ones
     for ($i = 0; $i -lt $classes.Count; $i++) {
         if (!($updatesList -match $classDates[$i])) { 
-            Write-Host "New $($classes[$i]) date found: $($classDates[$i])"
+            Write-Host "New $($classes[$i]) class dates: $($classDates[$i])"
             
             # append update to log file
             "$($classes[$i]) date: $($classDates[$i])" | Out-File -Append -LiteralPath $updatesFile
