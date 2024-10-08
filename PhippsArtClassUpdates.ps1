@@ -2,8 +2,8 @@
 
 # configurations
 $updatesFile = "C:\THEPHIPPSBOT\ClassUpdates.txt"
+$discordWebHook = "C:\THEPHIPPSBOT\DiscordWH.txt"
 $siteUrl = "https://thephipps.org/classes/art"
-$discordWebHook = Get-Content "C:\THEPHIPPSBOT\DiscordWH.txt"
 
 # create file to store updates
 if (!(Test-Path $updatesFile)) { New-Item -ItemType File -Path $updatesFile -Force }
@@ -59,7 +59,7 @@ function CheckSiteForUpdates {
                 }
             )
         } | ConvertTo-Json -Depth 100
-        Invoke-RestMethod -uri $discordWebHook -Body $notificationBody -Method Post -ContentType "application/json"
+        Invoke-RestMethod -uri (Get-Content $discordWebHook) -Body $notificationBody -Method Post -ContentType "application/json"
     }
 }
 
