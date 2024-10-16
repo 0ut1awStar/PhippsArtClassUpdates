@@ -4,6 +4,7 @@
 $updatesFile = "C:\THEPHIPPSBOT\ClassUpdates.txt"
 $discordWebHook = "C:\THEPHIPPSBOT\DiscordWH.txt"
 $siteUrl = "https://thephipps.org/classes/art"
+$badHyphens = "\?\?\?"
 
 # create file to store updates
 if (!(Test-Path $updatesFile)) { New-Item -ItemType File -Path $updatesFile -Force }
@@ -23,12 +24,15 @@ function CheckSiteForUpdates {
     
     try {
         # get website content
-        $siteContent = Invoke-WebRequest -UseBasicParsing -uri $siteUrl
+        $siteContent = (Invoke-WebRequest -uri $siteUrl)
         
         # match dates from the three desired classes
-        $classDates += $siteContent -match "Beginner Pottery on the Wheel[\s\S]*?([\w]*\s\d*-[\w]*\s\d*)" | ForEach-Object { $Matches[1] }
-        $classDates += $siteContent -match "Intermediate\/Advanced Pottery on the Wheel[\s\S]*?([\w]*\s\d*-[\w]*\s\d*)" | ForEach-Object { $Matches[1] }
-        $classDates += $siteContent -match "Pottery Open Studio[\s\S]*?([\w]*\s\d*-[\w]*\s\d*)" | ForEach-Object { $Matches[1] }
+        $classDates += $siteContent -match 'Beginner Pottery on the Wheel[\s\S]*?<p>(.*?)<br' | ForEach-Object { $Matches[1] }
+        $classDates += $siteContent -match "Intermediate\/Advanced Pottery on the Wheel[\s\S]*?<p>(.*?)<br" | ForEach-Object { $Matches[1] }
+        $classDates += $siteContent -match "Pottery Open Studio[\s\S]*?<p>(.*?)<br" | ForEach-Object { $Matches[1] }
+
+        if ($classDates -match $badHyphens) { $classDates = $classDates -replace $badHyphens, '-' }
+        
 
         # loop through class dates, checking for new ones
         for ($i = 0; $i -lt $classes.Count; $i++) {
@@ -49,9 +53,9 @@ function CheckSiteForUpdates {
         # send notification to discord
         if ($discordNotification) {
             $notificationBody = @{
-                username = "Phipps Notification Bot"
+                username   = "Phipps Notification Bot"
                 avatar_url = "https://i.imgur.com/Tv1N1KS.png"
-                embeds = @(
+                embeds     = @(
                     @{
                         title  = "Phipps Center for the Arts Class Updates"
                         url    = $siteUrl
