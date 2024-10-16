@@ -20,6 +20,8 @@ function CheckSiteForUpdates {
 
     $classes = @("Beginner", "Advanced", "Open-Studio")
     $classDates = @()
+    $classFees =@()
+    $regDates =@()
     $discordNotification = @()
     
     try {
@@ -31,9 +33,18 @@ function CheckSiteForUpdates {
         $classDates += $siteContent -match "Intermediate\/Advanced Pottery on the Wheel[\s\S]*?<p>(.*?)<br" | ForEach-Object { $Matches[1] }
         $classDates += $siteContent -match "Pottery Open Studio[\s\S]*?<p>(.*?)<br" | ForEach-Object { $Matches[1] }
 
+        # match registration dates 
+        $regDates += $siteContent -match 'Beginner Pottery on the Wheel[\s\S]*?(.egistration opens \w* 1\d*)' | ForEach-Object { $Matches[1] }
+        $regDates += $siteContent -match "Intermediate\/Advanced Pottery on the Wheel[\s\S]*?(.egistration opens \w* 1\d*)" | ForEach-Object { $Matches[1] }
+        $regDates += $siteContent -match "Pottery Open Studio[\s\S]*?(.egistration opens \w* 1\d*)" | ForEach-Object { $Matches[1] }
+
+        # match class fees
+        $classFees += $siteContent -match 'Beginner Pottery on the Wheel[\s\S]*?(Fee: \$\d*)' | ForEach-Object { $Matches[1] }
+        $classFees += $siteContent -match "Intermediate\/Advanced Pottery on the Wheel[\s\S]*?(Fee: \$\d*)" | ForEach-Object { $Matches[1] }
+        $classFees += $siteContent -match "Pottery Open Studio[\s\S]*?(Fee: \$\d*)" | ForEach-Object { $Matches[1] } 
+
         if ($classDates -match $badHyphens) { $classDates = $classDates -replace $badHyphens, '-' }
         
-
         # loop through class dates, checking for new ones
         for ($i = 0; $i -lt $classes.Count; $i++) {
             if (!($updatesList -match $classDates[$i])) { 
@@ -42,10 +53,15 @@ function CheckSiteForUpdates {
                 # append update to log file
                 "$($classes[$i]) date: $($classDates[$i])" | Out-File -Append -LiteralPath $updatesFile
 
+                # format notifcation text
+                $notificationText = "$($classDates[$i])"
+                if($regDates.count -gt 0) {$notificationText = $notificationText + "`n$($regDates[$i])"}
+                if($classFees.count -gt 0) {$notificationText = $notificationText + "`n$($classFees[$i])"}
+
                 # add update to discord notification
                 $discordNotification += @{
                     name  = "$($classes[$i]) Class Update"
-                    value = $classDates[$i]
+                    value = $notificationText
                 }
             }
         }
