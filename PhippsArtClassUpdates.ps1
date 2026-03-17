@@ -4,7 +4,7 @@
 
 param(
     [string]$Url = "https://app.jackrabbitclass.com/jr3.0/Openings/OpeningsJS?OrgID=546477&sort=class&hidecols=description,gender,session,openings&Cat1=Art|Pottery&Cat2=Pottery",
-    [string]$DiscordWebhook = "https://discord.com/api/webhooks/1292634680717344839/ELIeoVbudblAXOvH78edDb4XheafAoxtasuUAigC44qYjQ8BS_Nenzowet8i6e87aIRb",
+    [string]$DiscordWebhook = <discordWebHook>,
     [string]$OutputCsv = "$PSScriptRoot\classes.csv",
     [string]$HistoryFile = "$PSScriptRoot\class_history.json",
     [string]$LogFile = "$PSScriptRoot\class_monitor.log",
