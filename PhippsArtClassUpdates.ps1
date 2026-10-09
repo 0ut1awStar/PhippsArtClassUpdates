@@ -11,6 +11,9 @@ param(
     [switch]$SendFullTable
 )
 
+# add filters for specific class types or keywords if needed, e.g.:
+$unwantedClassFilter = "Workshop|Kids|Creative"
+
 # === Utility Functions ===
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
@@ -52,7 +55,7 @@ function Extract-ClassData {
     
     $classes = @()
     $rowPattern = '<tr>.*?</tr>'
-    $rows = [regex]::Matches($HtmlContent, $rowPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    $rows = [regex]::Matches($HtmlContent, $rowPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline) 
     Write-Log "Found $($rows.Count) table rows to process"
     
     foreach ($row in $rows) {
@@ -60,7 +63,7 @@ function Extract-ClassData {
         if ($rowHtml -notmatch 'data-title="Class".*?scope="row"') { continue }
         
         $titleMatch = [regex]::Match($rowHtml, 'data-title="Class"[^>]*>\s*([^<]+)\s*</th>')
-        if (-not $titleMatch.Success) { continue }
+        if (-not $titleMatch.Success -or $titleMatch.Groups[1].Value.Trim() -like "*$unwantedClassFilter*") { continue }
         $classTitle = $titleMatch.Groups[1].Value.Trim()
         
         $daysMatch = [regex]::Match($rowHtml, 'data-title="Days"[^>]*>\s*([^<]+)\s*</td>')
@@ -88,29 +91,52 @@ function Extract-ClassData {
     return $classes
 }
 
+function Get-CanonicalClassList {
+    param([array]$Classes)
+
+    $canonical = @()
+    foreach ($group in ($Classes | Group-Object -Property Class)) {
+        $selected = $group.Group | Sort-Object {
+            try {
+                [datetime]::ParseExact($_.ClassStarts, 'MM/dd/yyyy', [System.Globalization.CultureInfo]::InvariantCulture)
+            }
+            catch {
+                [datetime]::MinValue
+            }
+        } | Select-Object -Last 1
+
+        if ($selected) { $canonical += $selected }
+    }
+
+    return $canonical
+}
+
 function Compare-ClassTitles {
     param(
         [array]$OldClasses,
         [array]$NewClasses
     )
-    
+
+    $oldCanonical = Get-CanonicalClassList -Classes $OldClasses
+    $newCanonical = Get-CanonicalClassList -Classes $NewClasses
+
     $changes = @{
         Added    = @()
         Removed  = @()
         Modified = @()
     }
-    
-    $oldTitles = $OldClasses | ForEach-Object { $_.Class }
-    $newTitles = $NewClasses | ForEach-Object { $_.Class }
-    
-    foreach ($oldClass in $OldClasses) {
+
+    $oldTitles = $oldCanonical | ForEach-Object { $_.Class }
+    $newTitles = $newCanonical | ForEach-Object { $_.Class }
+
+    foreach ($oldClass in $oldCanonical) {
         if ($oldClass.Class -notin $newTitles) { $changes.Removed += $oldClass }
     }
-    foreach ($newClass in $NewClasses) {
+    foreach ($newClass in $newCanonical) {
         if ($newClass.Class -notin $oldTitles) { $changes.Added += $newClass }
     }
-    foreach ($newClass in $NewClasses) {
-        $oldClass = $OldClasses | Where-Object { $_.Class -eq $newClass.Class } | Select-Object -First 1
+    foreach ($newClass in $newCanonical) {
+        $oldClass = $oldCanonical | Where-Object { $_.Class -eq $newClass.Class } | Select-Object -First 1
         if ($oldClass) {
             $differences = @()
             if ($oldClass.Days -ne $newClass.Days) { $differences += "Days: '$($oldClass.Days)' -> '$($newClass.Days)'" }
@@ -118,7 +144,7 @@ function Compare-ClassTitles {
             if ($oldClass.Tuition -ne $newClass.Tuition) { $differences += "Tuition: `$$($oldClass.Tuition) -> `$$($newClass.Tuition)" }
             if ($oldClass.Status -ne $newClass.Status) { $differences += "Status: '$($oldClass.Status)' -> '$($newClass.Status)'" }
             if ($oldClass.ClassStarts -ne $newClass.ClassStarts) { $differences += "Start: '$($oldClass.ClassStarts)' -> '$($newClass.ClassStarts)'" }
-            
+
             if ($differences.Count -gt 0) {
                 $changes.Modified += [PSCustomObject]@{
                     Class    = $newClass
